@@ -133,6 +133,8 @@ class Mirror
     @_child = child_process.fork @_path, @_options
 
     @_child.once 'close', =>
+      @_starting = false
+      @_child = null
       @debug 'Mirror was closed', timed_out, arguments...
       return cb new Mirror.Error.TimedOut @name if timed_out
       cb new Mirror.Error.UnknownExit @name
