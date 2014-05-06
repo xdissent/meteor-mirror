@@ -39,7 +39,7 @@ class Mirror
     @_startup_callbacks.push Meteor.bindEnvironment callback
 
   publish: (msg) ->
-    @debug 'Publishing msg'
+    @debug 'Publishing msg', msg
     return @_child.send msg unless @isMirror
     process.send mirror: @name, message: msg
 
