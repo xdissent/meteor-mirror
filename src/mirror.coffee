@@ -8,6 +8,8 @@ debug = -> console.log 'Mirror -', arguments... if Mirror.settings.debug
 settings =
   debug: Meteor.settings.mirror?.debug
   current: Meteor.settings.mirror?.current
+  stdout: Meteor.settings.mirror?.stdout ? true
+  stderr: Meteor.settings.mirror?.stderr ? true
 
 
 class Mirror
@@ -40,7 +42,7 @@ class Mirror
 
   publish: (msg) ->
     @debug 'Publishing msg', msg
-    return @_child.send msg unless @isMirror
+    return @child.send msg unless @isMirror
     process.send mirror: @name, message: msg
 
   subscribe: (callback) ->
@@ -52,7 +54,7 @@ class Mirror
 
   start: (callback) ->
     return callback new Mirror.Error.ExceptCurrentMirror if @isMirror
-    return callback null if @_child?
+    return callback() if @child?
     callback = Meteor.bindEnvironment callback
     return @_start_callbacks.push callback if @_starting
     @_starting = true
@@ -60,7 +62,7 @@ class Mirror
 
   stop: ->
     throw new Mirror.Error.ExceptCurrentMirror if @isMirror
-    @_child.kill() if @_child?
+    @child.kill() if @child?
 
   _initCommon: ->
     Mirror._mirrors[@name] = this
@@ -74,7 +76,7 @@ class Mirror
     @root_url = "http://localhost:#{@port}/"
     @mongo_url = "mongodb://127.0.0.1:3001/#{@name}"
     return @_startMirror() if Mirror._listening
-    WebApp.onListening => @_startMirror()
+    WebApp.onListening Meteor.bindEnvironment => @_startMirror()
 
   _startMirror: ->
     callback() for callback in @_startup_callbacks
@@ -84,12 +86,12 @@ class Mirror
 
   _initParent: ->
     @port ?= @_randomPort()
+    @root_url = "http://localhost:#{@port}/"
     @_starting = false
     @_start_callbacks = []
-    @_child = null
+    @child = null
     @_path = path.join process.env.PWD, '.meteor', 'local', 'build', 'main.js'
-    meteor_settings = _.extend {}, @settings, mirror:
-      debug: Mirror.settings.debug
+    meteor_settings = _.extend {}, Meteor.settings, @settings, mirror:
       current:
         name: @name
         port: @port
@@ -110,7 +112,7 @@ class Mirror
     callbacks = if err? then [] else @_startup_callbacks
     callbacks = callbacks.concat @_start_callbacks, callback
     @_start_callbacks = []
-    @_child = null if err?
+    @child = null if err?
     @_starting = false
     cb err for cb in callbacks
 
@@ -120,44 +122,40 @@ class Mirror
 
   _spawn: (callback) ->
     timed_out = false
-    kill_timeout = setTimeout =>
+    timeout = setTimeout =>
       @debug 'Killing child after timeout'
       timed_out = true
-      @stop()
+      child.kill()
     , 30000
 
     cb = _.once ->
-      clearTimeout kill_timeout
+      clearTimeout timeout
       callback arguments...
 
-    @_child = child_process.fork @_path, @_options
+    child = child_process.fork @_path, @_options
 
-    @_child.once 'close', =>
+    child.once 'close', =>
       @_starting = false
-      @_child = null
+      @child = null
       @debug 'Mirror was closed', timed_out, arguments...
       return cb new Mirror.Error.TimedOut @name if timed_out
       cb new Mirror.Error.UnknownExit @name
 
-    @_child.stdout.on 'data', (chunk) =>
-      console.log "Mirror - (#{@name})",
-        chunk.toString().replace /\s$/, ''
-
-    @_child.stderr.on 'data', (chunk) =>
-      console.log "Mirror - (#{@name}) (STDERR)",
-        chunk.toString().replace /\s$/, ''
+    child.stdout.pipe process.stdout if Mirror.settings.stdout
+    child.stderr.pipe process.stderr if Mirror.settings.stderr
 
     subscriptions = (msg) =>
       @debug 'Mirror parent got message', msg
-      return unless @_isMyMessage msg and not @_isSecretMessage msg
+      return unless @_isMyMessage(msg) and not @_isSecretMessage msg
       subscription[0] msg.message for subscription in @_subscriptions
 
     secret_msg = (msg) =>
       @debug 'Mirror parent got message', msg
       return unless @_isSecretMessage msg
       @debug 'Mirror parent got secret message', msg
-      @_child.removeListener 'message', secret_msg
-      @_child.on 'message', subscriptions
+      child.removeListener 'message', secret_msg
+      child.on 'message', subscriptions
+      @child = child
       cb null
 
-    @_child.on 'message', secret_msg
+    child.on 'message', secret_msg
