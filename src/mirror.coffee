@@ -5,23 +5,33 @@ freeport = Npm.require 'freeport'
 
 debug = -> console.log 'Mirror -', arguments... if Mirror.settings.debug
 
-settings =
-  debug: Meteor.settings.mirror?.debug
-  current: Meteor.settings.mirror?.current
-  stdout: Meteor.settings.mirror?.stdout ? true
-  stderr: Meteor.settings.mirror?.stderr ? true
-
 
 class Mirror
 
+  # Secret message to indicate successful mirror startup
   @SECRET = '__mirror_mirror__'
 
-  @settings: settings
+  # Current mirror name if any
   @current: settings.current?.name
+
+  # Boolean indicating whether the current context is a mirror
   @isMirror: settings.current?
 
+  # Global settings, overridden per mirror instance
+  @settings:
+    debug: Meteor.settings.mirror?.debug
+    current: Meteor.settings.mirror?.current
+    stdout: Meteor.settings.mirror?.stdout ? true
+    stderr: Meteor.settings.mirror?.stderr ? true
+
   @_mirrors: {}
-  @_listening: false
+
+  @_init: ->
+    # Only an actual mirror needs this
+    return unless Mirror.isMirror?
+    # Always exit with parent process
+    process.stdin.resume()
+    process.stdin.on 'end', -> process.exit()
 
   constructor: (@name, @port, @settings = {}) ->
     throw new Mirror.Error.NameRequired unless @name?
@@ -75,8 +85,13 @@ class Mirror
     @settings = Mirror.settings.current.settings
     @root_url = "http://localhost:#{@port}/"
     @mongo_url = "mongodb://127.0.0.1:3001/#{@name}"
-    return @_startMirror() if Mirror._listening
-    WebApp.onListening Meteor.bindEnvironment => @_startMirror()
+    # Run startup callbacks at the appropriate time
+    startup = Meteor.bindEnvironment => @_startMirror()
+    if Package.webapp # Run immediately if webapp pkg included and listening
+      return startup() if Package.webapp.WebApp.httpServer?._handle?
+      return Package.webapp.WebApp.onListening startup # Run when listening
+    return startup() if Package.mirror? # Run immediately if already loaded pkg
+    Meteor.startup startup # Run upon meteor startup
 
   _startMirror: ->
     callback() for callback in @_startup_callbacks
