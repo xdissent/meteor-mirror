@@ -8,7 +8,7 @@ Npm.depends({
 });
 
 Package.on_use(function (api, where) {
-  api.use(['underscore', 'coffeescript', 'webapp'], 'server');
+  api.use(['underscore', 'coffeescript'], 'server');
   api.add_files('src/mirror.coffee', 'server');
   api.add_files('src/errors.coffee', 'server');
   api.add_files('src/main.coffee', 'server');
