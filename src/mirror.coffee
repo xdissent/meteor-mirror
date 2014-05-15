@@ -12,10 +12,10 @@ class Mirror
   @SECRET = '__mirror_mirror__'
 
   # Current mirror name if any
-  @current: settings.current?.name
+  @current: Meteor.settings.mirror?.current?.name
 
   # Boolean indicating whether the current context is a mirror
-  @isMirror: settings.current?
+  @isMirror: Meteor.settings.mirror?.current?
 
   # Global settings, overridden per mirror instance
   @settings:
