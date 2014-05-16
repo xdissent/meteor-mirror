@@ -1,0 +1,15 @@
+{
+  "meteor": {},
+  "dependencies": {
+    "basePackages": {
+      "mirror": {
+        "path": ".."
+      }
+    },
+    "packages": {
+      "mirror": {
+        "path": ".."
+      }
+    }
+  }
+}
