@@ -83,8 +83,9 @@ class Mirror
   _initMirror: ->
     @port = Mirror.settings.current.port
     @settings = Mirror.settings.current.settings
+    @mongo_port = @port + 1
     @root_url = "http://localhost:#{@port}/"
-    @mongo_url = "mongodb://127.0.0.1:3001/#{@name}"
+ +    @mongo_url = "mongodb://127.0.0.1:#{@mongo_port}/#{@name}"
     # Run startup callbacks at the appropriate time
     startup = Meteor.bindEnvironment => @_startMirror()
     if Package.webapp # Run immediately if webapp pkg included and listening
