@@ -105,7 +105,8 @@ class Mirror
     @_starting = false
     @_start_callbacks = []
     @child = null
-    @_path = path.join process.env.PWD, '.meteor', 'local', 'build', 'main.js'
+    @_path = @settings.main
+    @_path ?= path.join process.env.PWD, '.meteor', 'local', 'build', 'main.js'
     meteor_settings = _.extend {}, Meteor.settings, @settings, mirror:
       current:
         name: @name
