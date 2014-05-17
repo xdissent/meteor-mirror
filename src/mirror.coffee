@@ -79,12 +79,13 @@ class Mirror
     @_subscriptions = []
     @_startup_callbacks = []
     @isMirror = Mirror.current is @name
+    @mongo_port = process.env.MONGO_URL.replace /.*:(\d+).*/, '$1'
 
   _initMirror: ->
     @port = Mirror.settings.current.port
     @settings = Mirror.settings.current.settings
     @root_url = "http://localhost:#{@port}/"
-    @mongo_url = "mongodb://127.0.0.1:3001/#{@name}"
+    @mongo_url = "mongodb://127.0.0.1:#{@mongo_port}/#{@name}"
     # Run startup callbacks at the appropriate time
     startup = Meteor.bindEnvironment => @_startMirror()
     if Package.webapp # Run immediately if webapp pkg included and listening
@@ -119,7 +120,7 @@ class Mirror
       env: _.extend {}, process.env,
         PORT: @port
         ROOT_URL: "http://localhost:#{@port}/"
-        MONGO_URL: "mongodb://127.0.0.1:3001/#{@name}"
+        MONGO_URL: "mongodb://127.0.0.1:#{@mongo_port}/#{@name}"
         METEOR_SETTINGS: JSON.stringify meteor_settings
 
   _randomPort: -> Meteor._wrapAsync(freeport)()
