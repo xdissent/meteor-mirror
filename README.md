@@ -51,7 +51,7 @@ mirror
     "debug": true,
     "current":null,
     "stdout": true,
-    "stderr": true,
+    "stderr": true
  }
 }
 ```
