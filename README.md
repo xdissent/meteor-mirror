@@ -41,3 +41,17 @@ mirror
       console.log "Stopping the mirror"
       mirror.stop()
     , 10000
+```
+
+### Example [Meteor.settings](http://docs.meteor.com/#meteor_settings) configuration
+
+```json
+{
+  "mirror": {
+    "debug": true,
+    "current":null,
+    "stdout": true,
+    "stderr": true,
+ }
+}
+```
